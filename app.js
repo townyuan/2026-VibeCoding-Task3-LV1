@@ -2,14 +2,23 @@
    你需要填的設定
 ========================= */
 const CONFIG = {
-  CLIENT_ID: "",
-  SPREADSHEET_ID: "",
+  CLIENT_ID: "309839247458-7062tkf65jgdf2f3ccdgdc58689nirig.apps.googleusercontent.com",
+  SPREADSHEET_ID: "1-vk5_yJp8ePpk3FMq3ZnzpxZOJ-_C8bMymEuX0WOEt4",
 
   SHEET_RECORDS: "記帳紀錄",
   SHEET_FIELDS: "欄位表",
 
   SCOPES: "https://www.googleapis.com/auth/spreadsheets"
 };
+
+/* =========================
+   圖表顏色
+========================= */
+const CHART_COLORS = [
+  '#4f7cff', '#ff6b6b', '#ffd93d', '#6bcb77', '#ff9f43',
+  '#a29bfe', '#fd79a8', '#55efc4', '#74b9ff', '#e17055',
+  '#81ecec', '#fdcb6e'
+];
 
 /* =========================
    全域狀態
@@ -432,18 +441,43 @@ function renderBreakdown(items) {
     return;
   }
 
-  const rows = list.map(([cat, amt]) => {
+  const R = 60;
+  const C = 2 * Math.PI * R;
+  let cum = 0;
+
+  const sliceSVG = list.map(([cat, amt], i) => {
+    const f = amt / total;
+    const dashOffset = C * (0.25 - cum);
+    const color = CHART_COLORS[i % CHART_COLORS.length];
+    cum += f;
+    return `<circle cx="80" cy="80" r="${R}" fill="none"
+      stroke="${color}" stroke-width="24"
+      stroke-dasharray="${f * C} ${(1 - f) * C}"
+      stroke-dashoffset="${dashOffset}" />`;
+  }).join("");
+
+  const rows = list.map(([cat, amt], i) => {
     const pct = total > 0 ? Math.round((amt / total) * 100) : 0;
+    const color = CHART_COLORS[i % CHART_COLORS.length];
     return `
       <div class="barRow">
-        <div>${escapeHtml(cat)}</div>
-        <div class="bar"><div style="width:${pct}%"></div></div>
+        <div class="catLabel"><span class="dot" style="background:${color}"></span>${escapeHtml(cat)}</div>
+        <div class="bar"><div style="width:${pct}%;background:${color}aa"></div></div>
         <div class="right">${escapeHtml(formatMoney(amt))} (${pct}%)</div>
       </div>
     `;
   }).join("");
 
-  categoryBreakdown.innerHTML = rows;
+  categoryBreakdown.innerHTML = `
+    <div class="chartWrap">
+      <svg class="donutChart" viewBox="0 0 160 160" width="160" height="160">
+        ${sliceSVG}
+        <text x="80" y="74" text-anchor="middle" fill="var(--muted)" font-size="10">支出合計</text>
+        <text x="80" y="93" text-anchor="middle" fill="var(--text)" font-size="13" font-weight="bold">${formatMoney(total)}</text>
+      </svg>
+      <div class="breakdown-bars">${rows}</div>
+    </div>
+  `;
 }
 
 /* =========================
